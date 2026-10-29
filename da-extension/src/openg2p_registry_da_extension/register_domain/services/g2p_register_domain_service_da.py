@@ -6,7 +6,7 @@ from openg2p_registry_core.services import G2PRegisterDomainService
 from .domain_validation_utils import as_int, parse_date, validation_error
 from .ethiopian_calendar import gregorian_to_ethiopic
 from .fayda_uniqueness import duplicate_message, find_fayda_owner
-from .required_fields import DA_REGISTER_ID, load_required_fields, missing_labels
+from .required_fields import DA_REGISTER_ID, describe, load_sections, problems
 from ...geo_codes import geo_codes
 from .validation_rules import (
     EMAIL_PATTERN,
@@ -33,7 +33,7 @@ class G2PRegisterDomainServiceDA(G2PRegisterDomainService):
     """
 
     async def validate_domain_attributes(self, records: list[dict]):
-        required = await load_required_fields(DA_REGISTER_ID) if records else {}
+        sections = await load_sections(DA_REGISTER_ID) if records else []
         for record in records:
             self._normalise_source(record)
             self._validate_names(record)
@@ -42,7 +42,7 @@ class G2PRegisterDomainServiceDA(G2PRegisterDomainService):
             self._validate_email(record)
             self._validate_birth_ec(record)
             self._validate_joined_date(record)
-            self._validate_required(record, required)
+            self._validate_required(record, sections)
             await self._check_fayda_unique(record)
             await self._sync_flattened_geo_names(record)
 
@@ -150,17 +150,23 @@ class G2PRegisterDomainServiceDA(G2PRegisterDomainService):
             validation_error("Joining Date cannot be in the future")
 
     @staticmethod
-    def _validate_required(record: dict, required: dict[str, str]) -> None:
-        """Required fields (widget-required in the register metadata), checked
-        only when a person fills in the form. Only keys present in the record
-        are checked here: the intake form saves one section at a time, and a
-        change request carries only what changed. Absent keys are the intake
-        guard's job (da_intake_guard.py) on save and finalize."""
+    def _validate_required(record: dict, sections: list) -> None:
+        """Required fields (widget-required in the register metadata, with its
+        show / hide / require conditions), checked only when a person fills in
+        the form. Only keys present in the record are checked here: the intake
+        form saves one section at a time, and a change request carries only
+        what changed. Absent keys are the intake guard's job
+        (required_fields_mixin.py) on save and finalize; imports and partner
+        pushes are checked whole by their enrichers."""
         if not is_interactive(record):
             return
-        missing = missing_labels(required, record, absent_is_missing=False)
-        if missing:
-            validation_error("Required: " + ", ".join(missing))
+        found = []
+        for name, schema, _is_list in sections:
+            phrases = problems(schema, record, absent_is_missing=False)
+            if phrases:
+                found.append(describe(name, phrases))
+        if found:
+            validation_error("Required: " + "; ".join(found))
 
     # ------------------------------------------------------------------ geo --
     @staticmethod

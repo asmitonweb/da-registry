@@ -33,6 +33,7 @@ from openg2p_registry_core.interfaces import G2PPayloadEnricherInterface
 from sqlalchemy.orm import Session
 
 from ...geo_codes import geo_codes
+from ...register_domain.services.required_fields import incomplete_reason, load_sections_sync
 from . import code_lists
 
 _logger = logging.getLogger("g2p-payload-enricher-service")
@@ -253,6 +254,17 @@ def _build_da_record(row: Dict, source: str, geo: dict, session: Session) -> Dic
     return out
 
 
+def _require_complete(record: Dict, session: Session) -> None:
+    """Refuse a record that leaves a required, visible field of the register
+    metadata empty (widget-required, the same rule the web form submits under).
+    The ValueError carries the readable reason; the platform records it against
+    the row, and the DA Services exceptions list shows it as a missing mandatory
+    field."""
+    reason = incomplete_reason(record, load_sections_sync(session))
+    if reason:
+        raise ValueError(reason)
+
+
 class DAImportFileEnricherService(G2PPayloadEnricherInterface):
     def enrich(self, data: Dict, session: Session) -> Dict:
         row = {}
@@ -267,6 +279,7 @@ class DAImportFileEnricherService(G2PPayloadEnricherInterface):
 
         geo = _MasterDataGeo.resolve({level: row[level] for level in GEO_LEVELS})
         out = _build_da_record(row, SOURCE_CSV_IMPORT, geo, session)
+        _require_complete(out, session)
         _logger.info("DA import row enriched: Fayda ID %s, kebele %s", out["foundational_id"], out["kebele_name"])
         return out
 
@@ -321,6 +334,7 @@ class DAServicesEnricherService(G2PPayloadEnricherInterface):
         geo = (_MasterDataGeo.resolve_by_id(kebele_id) if kebele_id
                else _MasterDataGeo.resolve({level: row[level] for level in GEO_LEVELS}))
         out = _build_da_record(row, source, geo, session)
+        _require_complete(out, session)
         _logger.info("DA Services record %s enriched: Fayda ID %s, kebele %s",
                      reference, out["foundational_id"], out["kebele_name"])
         return out
