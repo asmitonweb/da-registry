@@ -8,6 +8,7 @@ import unittest
 from unittest import mock
 
 from openg2p_registry_da_extension.ingestion_pipeline.enricher_services import g2p_da_enricher_services as module
+from openg2p_registry_da_extension.register_domain.services import required_fields as rf
 
 # What the register metadata and Master Data would answer (see code_lists.py).
 FIELD_ATTRIBUTES = {"prefix": "PREFIX", "gender": "GENDER", "marital_status": "MARITAL_STATUS",
@@ -46,6 +47,8 @@ ROW = {
 
 class TestEnricher(unittest.TestCase):
     def setUp(self):
+        rf.set_sections_for_tests(rf.DA_REGISTER_ID, [])  # the register metadata has no requirement here
+        self.addCleanup(rf.set_sections_for_tests, rf.DA_REGISTER_ID, None)
         patcher = mock.patch.object(module._MasterDataGeo, "resolve", return_value=GEO)
         self.lists = mock.patch.object(module.code_lists, "field_attributes", return_value=(FIELD_ATTRIBUTES, FIELD_LABELS)); self.lists.start(); self.addCleanup(self.lists.stop)
         self.values = mock.patch.object(module.code_lists, "attribute_values", side_effect=lambda a: LISTS[a]); self.values.start(); self.addCleanup(self.values.stop)

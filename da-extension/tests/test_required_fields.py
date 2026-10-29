@@ -57,7 +57,7 @@ class TestGuard(unittest.IsolatedAsyncioTestCase):
 
     def _service(self):
         svc = self.guard.DAIntakeFormDataService.__new__(self.guard.DAIntakeFormDataService)
-        section = mock.Mock(section_ui_schema=SCHEMA, section_id="s1", is_list=False)
+        section = mock.Mock(section_ui_schema=SCHEMA, section_id="s1", is_list=False, section_description="DA details")
         svc._get_section_or_error = mock.AsyncMock(return_value=section)
         svc._records_for_validation = staticmethod(lambda records: [r for r in (records or []) if (r or {}).get("edit_action") != "DELETE"])
         svc._get_submission_or_error = mock.AsyncMock(return_value=mock.Mock(form_id="f1", submission_id="sub"))
@@ -72,7 +72,7 @@ class TestGuard(unittest.IsolatedAsyncioTestCase):
         with mock.patch.object(self.guard.G2PIntakeFormDataService, "save_intake_form_submission_with_session", new=mock.AsyncMock(return_value="saved")) as sup:
             with self.assertRaises(G2PRegistryException) as ctx:
                 await svc.save_intake_form_submission_with_session(None, "s1", [{"edit_action": "ADD"}], REG, "f1", REG, "u", None)
-            self.assertIn("Required: Name, Region / Zone / Woreda / Kebele", str(ctx.exception))
+            self.assertIn("Required: DA details: fill in Name, Region / Zone / Woreda / Kebele", str(ctx.exception))
             sup.assert_not_called()
 
     async def test_save_complete_record_and_partial_update_pass_through(self):
@@ -91,7 +91,7 @@ class TestGuard(unittest.IsolatedAsyncioTestCase):
                              ("sub", {"edit_action": "UPDATE", "internal_record_id": "rec-9", "first_name": "Abebe"})):
                 with self.assertRaises(G2PRegistryException) as ctx:
                     await svc.save_intake_form_submission_with_session(sid, "s1", [rec], REG, "f1", REG, "u", None)
-                self.assertIn("Required: Region / Zone / Woreda / Kebele", str(ctx.exception))
+                self.assertIn("Required: DA details: fill in Region / Zone / Woreda / Kebele", str(ctx.exception))
             sup.assert_not_called()
 
     async def test_import_records_are_not_checked(self):
@@ -107,12 +107,12 @@ class TestGuard(unittest.IsolatedAsyncioTestCase):
         with mock.patch.object(self.guard.G2PIntakeFormDataService, "finalize_submission_with_session", new=mock.AsyncMock(return_value="final")) as sup:
             with self.assertRaises(G2PRegistryException) as ctx:
                 await svc.finalize_submission_with_session("sub", None)
-            self.assertIn("Cannot submit for approval. Required: Region / Zone / Woreda / Kebele", str(ctx.exception))
+            self.assertIn("Cannot submit for approval. Required: DA details: fill in Region / Zone / Woreda / Kebele", str(ctx.exception))
             sup.assert_not_called()
             svc._build_section_payloads = mock.AsyncMock(return_value=[])  # no section saved at all
             with self.assertRaises(G2PRegistryException) as ctx:
                 await svc.finalize_submission_with_session("sub", None)
-            self.assertIn("Name, Region / Zone / Woreda / Kebele", str(ctx.exception))
+            self.assertIn("fill in Name, Region / Zone / Woreda / Kebele", str(ctx.exception))
 
     async def test_finalize_complete_submission_passes_through(self):
         svc = self._service()

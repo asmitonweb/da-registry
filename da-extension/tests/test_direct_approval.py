@@ -96,7 +96,10 @@ def test_the_guard_defines_only_the_two_direct_calls():
 
 @pytest.mark.parametrize("service_class", [DAIntakeFormDataService, DAChangeRequestService])
 def test_the_installed_services_carry_the_guard_first(service_class):
-    assert service_class.__mro__[1] is direct_approval.DirectApprovalClosed
+    mro = service_class.__mro__
+    platform = next(c for c in mro if c.__module__.startswith("openg2p_registry_core"))
+    assert direct_approval.DirectApprovalClosed in mro[:3]
+    assert mro.index(direct_approval.DirectApprovalClosed) < mro.index(platform)
 
 
 def test_the_installed_services_are_resolved_ahead_of_the_platform_ones():

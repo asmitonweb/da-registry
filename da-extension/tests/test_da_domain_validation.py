@@ -12,8 +12,11 @@ from openg2p_registry_da_extension.register_domain.services.g2p_register_domain_
 )
 
 
-REQUIRED = {"first_name": "Name", "middle_name": "Father Name", "gender": "Gender", "email": "Email",
+_REQUIRED = {"first_name": "Name", "middle_name": "Father Name", "gender": "Gender", "email": "Email",
             "foundational_id": "Fayda ID (FAN)"}  # what widget-required in the metadata would give
+REQUIRED = [("Contact", {"panels": [{"widgets": [
+    {"widget": "input", "widget-label": label, "widget-required": True, "widget-data-path": f"reg.{field}"}
+    for field, label in _REQUIRED.items()]}]}, False)]
 
 
 def validate(record: dict) -> dict:
@@ -60,7 +63,7 @@ class TestRequired(unittest.TestCase):
     def test_web_intake_blank_required_field_is_rejected(self):
         with self.assertRaises(G2PRegistryException) as ctx:
             validate({"first_name": "Abebe", "email": "", "source": "WEB_INTAKE"})
-        self.assertIn("Required: Email", str(ctx.exception))
+        self.assertIn("Required: Contact: fill in Email", str(ctx.exception))
 
     def test_absent_key_is_a_partial_save_not_a_blank(self):
         validate({"first_name": "Abebe", "source": "WEB_INTAKE"})
