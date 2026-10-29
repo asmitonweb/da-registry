@@ -10,7 +10,7 @@ Open items found while bringing the DA registry in line with the OpenG2P standar
 | Chart and platform pin | `HELM_CHART_VERSION` 1.0.0-dev.5 brings registry-platform rc.544, the images are rc.557. | Move the chart and the images to the same platform version together. |
 | Values | The pipeline upgrades with `--reuse-values`, values live in this repository (`deploy/dev/values-da.yaml`), and the repository keeps its own chart copy (`helm/openg2p-da-registry`). Crop Sown and Livestock pin their values in oan-helm (`ci/deploy/oan-chart.json`). | Port to the Crop Sown and Livestock pattern: pinned values in oan-helm, `--reset-values`, no chart copy here. |
 | Keycloak client | `da-registry-backend` (service account) and its secret `da-registry-backend-keycloak` / `client-secret` do not exist on the dev cluster. The references are optional, so the pods start; imports and DA Services pushes cannot open an approval until it exists. | Create the client and the secret (Keycloak admin). |
-| Self-service scope | Scope `da-self-service` and attribute `da_id` in the `staff` realm are not created. | Create them before testing a Development Agent's own-record access. |
+| DA Services service account | DA Services serves a DA their own profile through a service account (`docs/rbac-registry-roles.md` §5). | Create a confidential client with service accounts in realm `staff` and give its service-account user the client role Data Editor on `da-registry-staff-portal`; hand the secret to DA Services. |
 | Master Data lists | The form's dropdowns read `DA_EDUCATION_LEVEL`, `DA_SPECIALISATION`, `DA_POSITION`, `DA_SOURCE`. | Merge openg2p-data PR 22 and re-run the Master Data seed (`PACK_DOMAINS=agriculture`). |
 
 ## Sample data (decision of 29 October 2026)
@@ -26,6 +26,6 @@ The db-seed follows the OpenG2P standard exactly: the sample step is `docker/db-
 | Item | Note |
 |---|---|
 | Master Data read from its database | `code_lists.py` and the geo lookup read Master Data's Postgres when `REGISTRY_CELERY_WORKERS_MASTER_DATA_DB_*` is set. The standard is the Master Data API (`/attributes/get_attribute_values`, already supported here). Move the import path to the API and drop the database read mode. |
-| Temporary platform overrides | Two overrides kept by decision until OpenG2P fixes the platform, in `register_domain/temporary_platform_overrides.py`: IAM permissions per application, a Development Agent seeing only their own record. Raise each with OpenG2P and remove it once fixed; re-check on every platform upgrade (`docs/refactor/platform-overrides.md`). |
+| Temporary platform overrides | One override kept by decision until OpenG2P fixes the platform, in `register_domain/temporary_platform_overrides.py`: IAM permissions per application (IAM 1.4.2 still looks a role up by name only). Raise each with OpenG2P and remove it once fixed; re-check on every platform upgrade (`docs/refactor/platform-overrides.md`). |
 | Full-stack check | The service-token approval start for imports and the direct-approval refusal are covered by unit tests only. Run them once on a stack with Keycloak, the approval workflow engine and Postgres. |
 | Package name | `openg2p_registry_da_extension` matches the OpenG2P docs. Spelling out `development_agent` would change the package, release, namespace and database; a candidate for a naming window only. |
